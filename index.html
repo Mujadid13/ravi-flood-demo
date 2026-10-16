@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What if the Ravi rises? · SoftSinc</title>
+  <meta name="description" content="Illustrative 3D flood-exposure scenarios for Lahore along the Ravi River.">
+
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.135/Build/Cesium/Cesium.js"></script>
+  <link rel="stylesheet"
+        href="https://cesium.com/downloads/cesiumjs/releases/1.135/Build/Cesium/Widgets/widgets.css">
+
+  <style>
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body, #map {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+      background: #0c1725;
+    }
+
+    .panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: min(370px, calc(100% - 40px));
+      max-height: calc(100% - 40px);
+      overflow-y: auto;
+      padding: 20px;
+      color: #eef6ff;
+      background: rgba(12, 23, 37, 0.94);
+      border: 1px solid #425365;
+      border-radius: 12px;
+      z-index: 2;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .brand {
+      font-size: 12px;
+      letter-spacing: 1px;
+      color: #a5d8ff;
+      margin-bottom: 10px;
+    }
+
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    p { line-height: 1.45; margin: 0 0 10px; }
+    .subtitle { color: #becbda; font-size: 14px; }
+
+    #collapse {
+      display: none;
+      padding: 6px 10px;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .level { margin: 14px 0 4px; font-size: 32px; font-weight: 600; }
+    .level span { font-size: 14px; font-weight: 400; color: #becbda; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 10px 0 14px;
+    }
+
+    .stat {
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 8px;
+    }
+
+    .stat b { display: block; font-size: 18px; }
+    .stat small { color: #becbda; font-size: 11px; }
+
+    input[type="range"] { width: 100%; accent-color: #4292c6; }
+
+    .ticks {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #8fa3b8;
+      margin-top: 2px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    button {
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 6px;
+      background: #d4edff;
+      color: #102437;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    button:disabled { opacity: 0.45; cursor: default; }
+    button:focus-visible, input:focus-visible, summary:focus-visible {
+      outline: 2px solid #a5d8ff;
+      outline-offset: 2px;
+    }
+
+    .toggle { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; color: #c7d4e0; cursor: pointer; }
+    .toggle input { accent-color: #4292c6; width: 16px; height: 16px; }
+
+    #status { font-size: 13px; color: #c7d4e0; margin-top: 12px; }
+
+    .legend { margin-top: 14px; font-size: 12px; color: #c7d4e0; }
+    .legend-bar {
+      height: 10px;
+      border-radius: 5px;
+      margin: 4px 0 2px;
+      background: linear-gradient(90deg, #08306b, #2171b5, #6baed6, #9ecae1);
+    }
+    .legend-row { display: flex; justify-content: space-between; }
+
+    #insight {
+      font-size: 13px;
+      color: #dbe7f3;
+      background: rgba(66, 146, 198, 0.12);
+      border-left: 3px solid #4292c6;
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin: 0 0 12px;
+    }
+    #insight small { display: block; margin-top: 4px; color: #a9bacb; font-size: 11px; }
+
+    .chart { margin: 4px 0 12px; }
+    .chart-title { font-size: 12px; color: #c7d4e0; margin-bottom: 4px; }
+    .chart svg { display: block; width: 100%; height: 70px; overflow: visible; }
+    .chart .bar { fill: #34506b; transition: fill 0.2s; }
+    .chart .bar.on { fill: #6baed6; }
+    .chart .bar.current { fill: #d4edff; }
+    .chart .hit { fill: transparent; cursor: pointer; }
+    .chart .axis { fill: #8fa3b8; font-size: 10px; }
+    .chart-tip { font-size: 11px; color: #a9bacb; min-height: 15px; }
+
+    #validation {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #c7d4e0;
+    }
+
+    details {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #c7d4e0;
+    }
+    summary { cursor: pointer; color: #eef6ff; font-size: 13px; }
+    details p, details ul { margin: 8px 0; }
+    details ul { padding-left: 18px; }
+    details li { margin-bottom: 4px; }
+    details a { color: #a5d8ff; }
+    input[type="file"] { width: 100%; margin: 8px 0; color: #c7d4e0; }
+
+    .notice {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid #425365;
+      font-size: 12px;
+      color: #c7d4e0;
+    }
+
+    .contact { margin-top: 10px; font-size: 12px; }
+    .contact a { color: #a5d8ff; }
+
+    @media (max-width: 600px) {
+      .panel {
+        top: auto;
+        bottom: 10px;
+        left: 10px;
+        width: calc(100% - 20px);
+        max-height: 60%;
+        padding: 14px;
+      }
+      h1 { font-size: 20px; }
+      .level { font-size: 26px; }
+      #collapse { display: inline-block; }
+      .panel.collapsed .collapsible { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+
+  <section class="panel" id="panel" aria-label="Flood scenario controls">
+    <div class="panel-head">
+      <div>
+        <div class="brand" id="brand">SoftSinc · Geospatial demo</div>
+        <h1>What if the Ravi rises?</h1>
+      </div>
+      <button id="collapse" aria-expanded="true" aria-controls="panel">Hide</button>
+    </div>
+
+    <p class="subtitle collapsible">
+      Lahore · ground that rising water could reach through a connected
+      low-lying path from the river
+    </p>
+
+    <div class="level">
+      +<output id="rise">0.0</output> m
+      <span>above estimated river reference</span>
+    </div>
+
+    <div class="stats" id="stats" hidden>
+      <div class="stat" title="Estimated residents living on the exposed ground (GHSL 2025)">
+        <b id="statPeople">0</b><small>people living there</small></div>
+      <div class="stat" title="Ground below this water level and connected to the river by other low ground">
+        <b id="statArea">0</b><small>km² of ground</small></div>
+      <div class="stat" title="Part of that ground covered by buildings (GHSL 2025)">
+        <b id="statBuilt">0</b><small>km² built-up</small></div>
+    </div>
+
+    <p id="insight" aria-live="polite" hidden></p>
+
+    <div class="chart collapsible" id="chart" hidden>
+      <div class="chart-title">People living on exposed ground, by water level</div>
+      <svg id="chartSvg" role="img" aria-label="Bar chart of people on exposed ground for each water level"></svg>
+      <div class="chart-tip" id="chartTip">Tap a bar to jump to that level.</div>
+    </div>
+
+    <label for="slider">Water-level scenario</label>
+    <input id="slider" type="range" min="0" max="10" step="1" value="0" disabled>
+    <div class="ticks" aria-hidden="true"><span>+0 m</span><span id="tickMax">+5 m</span></div>
+
+    <div class="actions">
+      <button id="play" disabled>Play</button>
+      <button id="reset" disabled>Reset</button>
+      <button id="home">Lahore view</button>
+    </div>
+
+    <label class="toggle">
+      <input type="checkbox" id="labelsToggle" checked> Show place names
+    </label>
+
+    <p id="status" role="status">Starting map…</p>
+
+    <div class="collapsible">
+      <div class="legend">
+        Exposed ground, by the level at which it first floods
+        <div class="legend-bar"></div>
+        <div class="legend-row"><span>Early (+0.5 m)</span><span id="legendMax">Late (+5 m)</span></div>
+      </div>
+
+      <p id="validation" hidden></p>
+
+      <details>
+        <summary>What do these numbers mean?</summary>
+        <ul>
+          <li><strong>People living there</strong> — estimated residents on the
+            blue ground, for the level shown and all lower levels.</li>
+          <li><strong>km² of ground</strong> — land lower than the raised water
+            and linked to the river through other low land.</li>
+          <li><strong>km² built-up</strong> — the part of that land covered by
+            buildings. A small share means the water mostly reaches farmland and
+            floodplain, not dense city.</li>
+        </ul>
+        <p>These show <em>who lives on low, river-connected ground</em> — not how
+          many people would actually be flooded. Real flooding also depends on
+          how much water arrives, for how long, embankments and drainage.
+          Figures are rounded; elevation data can be off by a metre or more.</p>
+      </details>
+
+      <details>
+        <summary>How this works</summary>
+        <p>
+          A river reference level is estimated from satellite elevation data
+          along the Ravi's wet channel. For each scenario we raise that level
+          and mark land that is lower than the water <em>and</em> connected to
+          the river through other low land. Isolated hollows are not counted.
+        </p>
+        <p>
+          Population and built-up area are summed over the exposed ground.
+          Numbers are rounded and indicative.
+        </p>
+        <p><strong>Not modelled:</strong> river discharge, flow speed or timing,
+          rainfall, drainage, and flood embankments (which the 30 m elevation
+          data cannot reliably resolve). Elevation errors of a metre or more
+          are typical.</p>
+      </details>
+
+      <details>
+        <summary>Data sources</summary>
+        <ul>
+          <li>Elevation: Copernicus DEM GLO-30 (© DLR / Airbus, ESA)</li>
+          <li>River lines: WWF HydroSHEDS Free-Flowing Rivers</li>
+          <li>Surface water: JRC Global Surface Water (EC JRC / Google)</li>
+          <li>Population &amp; built-up: GHSL 2023 (European Commission JRC)</li>
+          <li>Flood check: Copernicus Sentinel-1 radar (ESA)</li>
+          <li>Processing: Google Earth Engine · 3D map: CesiumJS, Cesium ion</li>
+        </ul>
+      </details>
+
+      <details>
+        <summary>Load a different export</summary>
+        <input id="file" type="file" accept=".geojson,.json"
+               aria-label="Load an Earth Engine GeoJSON export">
+      </details>
+
+      <div class="notice">
+        Illustrative exposure model — not a flood forecast. Rise is relative to
+        an estimated reference, not a measured river stage. Animation steps do
+        not represent elapsed time.
+      </div>
+
+      <div class="contact" id="contact"></div>
+    </div>
+  </section>
+
+  <script>
+    // ===== Settings you will want to edit =====
+    const COMPANY_NAME = "SoftSinc";      // shown at the top of the panel
+    const CONTACT_HTML = "";                       // e.g. 'Talk to us: <a href="mailto:you@company.com">you@company.com</a>'
+    const DATA_URL = "ravi_flood_zones.geojson";   // file placed next to index.html
+    const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IlNBQ3JtUEp0Q2JaVmlsbmsiLCJqdGkiOiI5ZDI1ZmRkNC05ZWU0LTRlNzEtOTc2Ni04NjBlNTI3ODU4MzQiLCJpZCI6NTI3NDM5LCJzdWIiOiJNdWphZGlkIFNhbmEiLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoiTXVqYWRpZCBTYW5hX2RlZmF1bHQiLCJpYXQiOjE3OTIxNzg0NzN9.wJilST_J-odAgP0MN5QTeWPYG0z74VgxpiXXxwKmQGU";
+    // Restrict this token to your site's URL in your Cesium ion account.
+
+    // Totals for the whole map area (Earth Engine AOI 74.05–74.55 E, 31.35–31.80 N),
+    // used to put the numbers in context. Update if you change the AOI.
+    const AOI_PEOPLE = 13900000;   // GHSL 2025 population inside the AOI
+    const AOI_KM2 = 2370;          // AOI land area
+
+    // Basemap: Google Maps 2D tiles through Cesium ion (needs CesiumJS 1.135+).
+    // 1. In ion > Asset Depot, open "Google Maps 2D Satellite with Labels"
+    //    and click "Add to my assets".
+    // 2. In ion > My Assets, copy its numeric ID and paste it below.
+    // Optional: also add "Google Maps 2D Labels Only" and paste its ID to put a
+    //    second, crisper label layer on top. Leave null to skip.
+    // Google tiles count toward your ion "Global Imagery" quota.
+    const GOOGLE_SATELLITE_LABELS_ASSET_ID = 3830183; // "Google Maps 2D Satellite with Labels"
+    const GOOGLE_LABELS_ONLY_ASSET_ID = null;        // optional
+
+    // Place names drawn by the viewer itself, on top of the flood layer.
+    // Coordinates are approximate (to ~200 m) — check and edit before publishing.
+    // size: "major" always visible, "minor" only when zoomed in.
+    const PLACES = [
+      { name: "LAHORE",                    lat: 31.5497, lon: 74.3436, size: "city" },
+      { name: "Ravi River",                lat: 31.6120, lon: 74.2960, size: "river" },
+      { name: "Shahdara",                  lat: 31.6240, lon: 74.2850, size: "major" },
+      { name: "Walled City",               lat: 31.5820, lon: 74.3170, size: "major" },
+      { name: "Minar-e-Pakistan",          lat: 31.5925, lon: 74.3095, size: "minor" },
+      { name: "Badshahi Mosque",           lat: 31.5881, lon: 74.3100, size: "minor" },
+      { name: "Allama Iqbal Airport",      lat: 31.5216, lon: 74.4036, size: "major" },
+      { name: "Gulberg",                   lat: 31.5160, lon: 74.3480, size: "minor" },
+      { name: "Model Town",                lat: 31.4834, lon: 74.3260, size: "minor" },
+      { name: "Johar Town",                lat: 31.4697, lon: 74.2728, size: "minor" },
+      { name: "DHA",                       lat: 31.4730, lon: 74.4060, size: "minor" },
+      { name: "Thokar Niaz Baig",          lat: 31.4720, lon: 74.2420, size: "minor" },
+      { name: "Kala Shah Kaku",            lat: 31.7250, lon: 74.2700, size: "major" },
+      { name: "Muridke",                   lat: 31.8020, lon: 74.2550, size: "major" },
+      { name: "Sheikhupura",               lat: 31.7131, lon: 73.9783, size: "major" },
+      { name: "Wagah Border",              lat: 31.6047, lon: 74.5731, size: "major" }
+    ];
+
+    // Same palette as the Earth Engine frames: dark = floods first.
+    const PALETTE = [
+      "#08306b", "#08458a", "#08519c", "#1361a9", "#2171b5",
+      "#3182bd", "#4292c6", "#5ba3d0", "#6baed6", "#9ecae1"
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    const status = $("status");
+    const slider = $("slider");
+    const rise = $("rise");
+    const play = $("play");
+    const reset = $("reset");
+    const home = $("home");
+    const fileInput = $("file");
+
+    $("brand").textContent = COMPANY_NAME + " · Geospatial demo";
+    if (CONTACT_HTML) $("contact").innerHTML = CONTACT_HTML;
+
+    let viewer;
+    let floodSource = null;
+    let zones = [];
+    let stepStats = {};          // step -> {people, exposed_km2, built_km2}
+    let timer = null;
+    let stepMetres = 0.5;
+    let numberOfSteps = 10;
+
+    // ---------- formatting ----------
+    function roundSig(n, digits) {
+      if (!n) return 0;
+      const p = Math.pow(10, Math.floor(Math.log10(Math.abs(n))) - digits + 1);
+      return Math.round(n / p) * p;
+    }
+
+    function fmtPeople(n) {
+      if (!n) return "0";
+      if (n < 1000) return "~" + roundSig(n, 1).toLocaleString("en");
+      return "~" + roundSig(n, 2).toLocaleString("en");
+    }
+
+    function fmtKm2(n) {
+      if (!n) return "0";
+      return n < 10 ? n.toFixed(1) : Math.round(n).toLocaleString("en");
+    }
+
+    // ---------- display ----------
+    function stop() {
+      if (timer !== null) clearInterval(timer);
+      timer = null;
+      play.textContent = "Play";
+    }
+
+    function showStep(step) {
+      slider.value = String(step);
+      rise.value = (step * stepMetres).toFixed(1);
+
+      for (const zone of zones) {
+        zone.entity.show = zone.step <= step;
+      }
+
+      const s = stepStats[step] || { people: 0, exposed_km2: 0, built_km2: 0 };
+      $("statPeople").textContent = fmtPeople(s.people);
+      $("statArea").textContent = fmtKm2(s.exposed_km2);
+      $("statBuilt").textContent = fmtKm2(s.built_km2);
+
+      updateInsight(step);
+      updateChart(step);
+
+      if (viewer) viewer.scene.requestRender();
+    }
+
+    // ---------- plain-language explanation ----------
+    function levelLabel(step) {
+      return "+" + (step * stepMetres).toFixed(1) + " m";
+    }
+
+    function biggestJumpStep() {
+      let best = null, bestGain = 0;
+      for (let s = 1; s <= numberOfSteps; s++) {
+        const gain = ((stepStats[s] || {}).people || 0) - ((stepStats[s - 1] || {}).people || 0);
+        if (gain > bestGain) { bestGain = gain; best = s; }
+      }
+      return best;
+    }
+
+    function updateInsight(step) {
+      const box = $("insight");
+      if (!Object.keys(stepStats).length) { box.hidden = true; return; }
+      box.hidden = false;
+
+      if (step === 0) {
+        box.innerHTML = "Press <b>Play</b> or drag the slider to raise the river. " +
+          "The boxes above will show who lives on the ground the water could reach.";
+        return;
+      }
+
+      const s = stepStats[step] || {};
+      const prev = stepStats[step - 1] || { people: 0 };
+      const people = s.people || 0;
+      const sharePeople = AOI_PEOPLE ? (people / AOI_PEOPLE) * 100 : 0;
+      const shareArea = AOI_KM2 ? (s.exposed_km2 / AOI_KM2) * 100 : 0;
+      const builtShare = s.exposed_km2 ? (s.built_km2 / s.exposed_km2) * 100 : 0;
+
+      const pct = (x) => x < 0.1 ? "under 0.1%" : x < 10 ? x.toFixed(1) + "%" : Math.round(x) + "%";
+
+      let text = "At <b>" + levelLabel(step) + "</b>, about <b>" + fmtPeople(people).replace("~", "") +
+        " people</b> (" + pct(sharePeople) + " of the ~" + (AOI_PEOPLE / 1e6).toFixed(1) +
+        " million in this map) live on low ground the river could reach — " +
+        pct(shareArea) + " of the map area. ";
+
+      text += builtShare < 10
+        ? "Just " + pct(builtShare) + " of that ground is built-up, so it is mostly farmland and floodplain."
+        : pct(builtShare) + " of that ground is built-up, so the water is now reaching settled areas.";
+
+      const gain = people - (prev.people || 0);
+      if (step > 1 && gain > 0) {
+        text += " That is " + fmtPeople(gain).replace("~", "~") + " more people than at " + levelLabel(step - 1) + ".";
+      }
+      if (step === biggestJumpStep()) {
+        text += " <b>This is the biggest jump in the scenario.</b>";
+      }
+
+      box.innerHTML = text +
+        "<small>Exposure, not a prediction that these people will be flooded.</small>";
+    }
+
+    // ---------- mini bar chart (people by level) ----------
+    function buildChart() {
+      const svg = $("chartSvg");
+      const wrap = $("chart");
+      svg.innerHTML = "";
+      if (!Object.keys(stepStats).length) { wrap.hidden = true; return; }
+      wrap.hidden = false;
+
+      const n = numberOfSteps;
+      const W = 320, H = 56, gap = 2;
+      const bw = (W - gap * (n - 1)) / n;
+      const maxP = Math.max(1, ...Array.from({ length: n }, (_, i) => (stepStats[i + 1] || {}).people || 0));
+      svg.setAttribute("viewBox", "0 0 " + W + " " + (H + 14));
+      svg.setAttribute("preserveAspectRatio", "none");
+
+      const NS = "http://www.w3.org/2000/svg";
+      for (let s = 1; s <= n; s++) {
+        const p = (stepStats[s] || {}).people || 0;
+        const h = Math.max(1, (p / maxP) * H);
+        const x = (s - 1) * (bw + gap);
+
+        const bar = document.createElementNS(NS, "rect");
+        bar.setAttribute("class", "bar");
+        bar.setAttribute("x", x); bar.setAttribute("y", H - h);
+        bar.setAttribute("width", bw); bar.setAttribute("height", h);
+        bar.setAttribute("rx", Math.min(3, bw / 2));
+        bar.dataset.step = s;
+        svg.appendChild(bar);
+
+        // Full-height hit target, larger than the bar itself.
+        const hit = document.createElementNS(NS, "rect");
+        hit.setAttribute("class", "hit");
+        hit.setAttribute("x", x); hit.setAttribute("y", 0);
+        hit.setAttribute("width", bw + gap); hit.setAttribute("height", H + 14);
+        const tipText = levelLabel(s) + ": " + fmtPeople(p) + " people";
+        hit.addEventListener("mouseenter", () => { $("chartTip").textContent = tipText; });
+        hit.addEventListener("mouseleave", () => { $("chartTip").textContent = "Tap a bar to jump to that level."; });
+        hit.addEventListener("click", () => { stop(); showStep(s); $("chartTip").textContent = tipText; });
+        svg.appendChild(hit);
+      }
+
+      for (const [s, anchor] of [[1, "start"], [n, "end"]]) {
+        const t = document.createElementNS(NS, "text");
+        t.setAttribute("class", "axis");
+        t.setAttribute("x", anchor === "start" ? 0 : W);
+        t.setAttribute("y", H + 12);
+        t.setAttribute("text-anchor", anchor);
+        t.textContent = levelLabel(s);
+        svg.appendChild(t);
+      }
+    }
+
+    function updateChart(step) {
+      const cur = stepStats[step];
+      $("chartTip").textContent = step > 0 && cur
+        ? levelLabel(step) + ": " + fmtPeople(cur.people) + " people · tap a bar to jump"
+        : "Tap a bar to jump to that level.";
+      for (const bar of $("chartSvg").querySelectorAll(".bar")) {
+        const s = Number(bar.dataset.step);
+        bar.classList.toggle("on", s < step);
+        bar.classList.toggle("current", s === step);
+      }
+    }
+
+    // ---------- place-name labels ----------
+    let placeLabels = null;
+
+    function addPlaceLabels() {
+      placeLabels = new Cesium.CustomDataSource("places");
+      const styles = {
+        city:  { font: "bold 20px system-ui, Arial", fill: "#ffffff", near: 0, far: 400000 },
+        river: { font: "italic 15px system-ui, Arial", fill: "#a5d8ff", near: 0, far: 150000 },
+        major: { font: "14px system-ui, Arial", fill: "#ffffff", near: 0, far: 120000 },
+        minor: { font: "12px system-ui, Arial", fill: "#e6eef6", near: 0, far: 45000 }
+      };
+
+      for (const p of PLACES) {
+        const st = styles[p.size] || styles.minor;
+        placeLabels.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat),
+          point: p.size === "river" || p.size === "city" ? undefined : {
+            pixelSize: 5,
+            color: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 1,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(st.near, st.far)
+          },
+          label: {
+            text: p.name,
+            font: st.font,
+            fillColor: Cesium.Color.fromCssColorString(st.fill),
+            outlineColor: Cesium.Color.fromCssColorString("#0c1725"),
+            outlineWidth: 3,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            showBackground: false,
+            pixelOffset: new Cesium.Cartesian2(0, -12),
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,   // never hidden by terrain or flood
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(st.near, st.far),
+            scaleByDistance: new Cesium.NearFarScalar(5000, 1.15, 150000, 0.8)
+          }
+        });
+      }
+      return viewer.dataSources.add(placeLabels);
+    }
+
+    async function raisePlaceLabels() {
+      // Keep labels above the flood polygons after a new file is loaded.
+      if (placeLabels && viewer.dataSources.contains(placeLabels)) {
+        viewer.dataSources.raiseToTop(placeLabels);
+      }
+    }
+
+    function homeView() {
+      if (!viewer) return;
+      const target = Cesium.Cartesian3.fromDegrees(74.30, 31.575);
+      viewer.camera.lookAt(
+        target,
+        new Cesium.HeadingPitchRange(
+          Cesium.Math.toRadians(0),
+          Cesium.Math.toRadians(-55),
+          55000
+        )
+      );
+      viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+      viewer.scene.requestRender();
+    }
+
+    // ---------- data loading ----------
+    function isPolygonFeature(f) {
+      const g = f && f.geometry;
+      return g && ["Polygon", "MultiPolygon"].includes(g.type) &&
+             Array.isArray(g.coordinates) && g.coordinates.length > 0;
+    }
+
+    async function loadGeoJson(geojson) {
+      stop();
+      play.disabled = reset.disabled = slider.disabled = true;
+      status.textContent = "Loading flood polygons…";
+
+      if (geojson.type !== "FeatureCollection" ||
+          !Array.isArray(geojson.features) ||
+          geojson.features.length === 0) {
+        throw new Error("Expected a non-empty GeoJSON FeatureCollection.");
+      }
+
+      const metadata = geojson.features[0].properties || {};
+
+      // Step size: step_m (current export), interval_m (older), or rise_m / step.
+      let nextStepMetres = Number(metadata.step_m ?? metadata.interval_m);
+      if (!Number.isFinite(nextStepMetres) &&
+          Number.isFinite(Number(metadata.rise_m)) && Number(metadata.step) > 0) {
+        nextStepMetres = Number(metadata.rise_m) / Number(metadata.step);
+      }
+      const nextNumberOfSteps = Number(metadata.n_steps);
+
+      if (!Number.isFinite(nextStepMetres) || nextStepMetres <= 0 ||
+          !Number.isInteger(nextNumberOfSteps) || nextNumberOfSteps < 1) {
+        throw new Error("Missing step_m or n_steps in the GeoJSON.");
+      }
+
+      const nextStats = { 0: { people: 0, exposed_km2: 0, built_km2: 0 } };
+      let hasStats = false;
+      let best = null;
+      const usable = [];
+
+      for (const feature of geojson.features) {
+        const p = feature.properties || {};
+        const s = Number(p.step);
+        if (!Number.isInteger(s) || s < 1 || s > nextNumberOfSteps) {
+          throw new Error("A feature contains an invalid flood step.");
+        }
+
+        if (p.people !== null && p.people !== undefined && p.people !== "" &&
+            Number.isFinite(Number(p.people))) {
+          hasStats = true;
+          nextStats[s] = {
+            people: Number(p.people),
+            exposed_km2: Number(p.exposed_km2) || 0,
+            built_km2: Number(p.built_km2) || 0
+          };
+          const iou = Number(p.s1_iou_pct);
+          if (Number.isFinite(iou) && (!best || iou > best.iou)) {
+            best = { step: s, iou, recall: Number(p.s1_recall_pct) };
+          }
+        }
+
+        // Skip empty geometries (a step with no new flooding).
+        if (isPolygonFeature(feature)) usable.push(feature);
+      }
+
+      if (!usable.length) throw new Error("No displayable flood polygons found.");
+
+      const loaded = await Cesium.GeoJsonDataSource.load(
+        { type: "FeatureCollection", features: usable },
+        { clampToGround: true, stroke: Cesium.Color.TRANSPARENT }
+      );
+
+      const nextZones = [];
+      const now = Cesium.JulianDate.now();
+
+      for (const entity of loaded.entities.values) {
+        if (!entity.polygon) continue;
+        const s = Number(entity.properties.step.getValue(now));
+        const colour = PALETTE[Math.min(PALETTE.length - 1,
+          Math.round((s - 1) * (PALETTE.length - 1) / Math.max(1, nextNumberOfSteps - 1)))];
+
+        entity.polygon.material = Cesium.Color.fromCssColorString(colour).withAlpha(0.6);
+        entity.polygon.outline = false;
+        entity.show = false;
+        nextZones.push({ entity, step: s });
+      }
+
+      if (!nextZones.length) throw new Error("No displayable flood polygons found.");
+
+      if (floodSource) viewer.dataSources.remove(floodSource, true);
+      floodSource = await viewer.dataSources.add(loaded);
+      await raisePlaceLabels();
+
+      zones = nextZones;
+      stepStats = hasStats ? nextStats : {};
+      stepMetres = nextStepMetres;
+      numberOfSteps = nextNumberOfSteps;
+
+      const maxLabel = "+" + (numberOfSteps * stepMetres).toFixed(1).replace(/\.0$/, "") + " m";
+      slider.max = String(numberOfSteps);
+      $("tickMax").textContent = maxLabel;
+      $("legendMax").textContent = "Late (" + maxLabel + ")";
+      $("stats").hidden = !hasStats;
+
+      const v = $("validation");
+      if (best && best.iou > 0) {
+        v.hidden = false;
+        v.textContent =
+          "Reality check: the +" + (best.step * stepMetres).toFixed(1) +
+          " m scenario best matches flooding detected by Sentinel-1 radar in " +
+          "Aug–Sep 2025 (it covers " + Math.round(best.recall) +
+          "% of the detected area). Radar detection is itself approximate.";
+      } else {
+        v.hidden = true;
+      }
+
+      buildChart();
+      showStep(0);
+      play.disabled = reset.disabled = slider.disabled = false;
+      status.textContent = hasStats
+        ? "Press Play or drag the slider. Drag the map to rotate (right-drag or Ctrl-drag to tilt)."
+        : "Loaded " + geojson.features.length.toLocaleString("en") +
+          " polygons, but this is an older export without exposure figures. " +
+          "Download the newest ravi_flood_zones file (10 features) from Drive.";
+    }
+
+    async function loadDefaultData() {
+      try {
+        const response = await fetch(DATA_URL, { cache: "no-cache" });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        await loadGeoJson(await response.json());
+      } catch (error) {
+        status.textContent =
+          "Could not load " + DATA_URL + " (" + error.message + "). " +
+          "Place it next to index.html and serve the folder over http, " +
+          "or use “Load a different export” below.";
+      }
+    }
+
+    // ---------- basemap ----------
+    // Google Maps satellite + a Google labels-only overlay (via Cesium ion).
+    // Falls back to Bing aerial-with-labels if Google tiles are unavailable
+    // (asset not added to your ion account, quota used up, etc.).
+    async function addBasemap() {
+      if (GOOGLE_SATELLITE_LABELS_ASSET_ID) {
+        try {
+          // Same call as the code snippet on the asset's ion page.
+          const base = await Cesium.IonImageryProvider.fromAssetId(
+            GOOGLE_SATELLITE_LABELS_ASSET_ID
+          );
+          viewer.imageryLayers.addImageryProvider(base);
+
+          if (GOOGLE_LABELS_ONLY_ASSET_ID) {
+            try {
+              const labels = await Cesium.IonImageryProvider.fromAssetId(
+                GOOGLE_LABELS_ONLY_ASSET_ID
+              );
+              viewer.imageryLayers.addImageryProvider(labels);
+            } catch (error) {
+              console.warn("Google labels-only layer unavailable:", error);
+            }
+          }
+          return "google";
+        } catch (error) {
+          console.warn("Google Maps tiles unavailable, using Bing instead:", error);
+        }
+      }
+
+      const bing = await Cesium.createWorldImageryAsync({
+        style: Cesium.IonWorldImageryStyle.AERIAL_WITH_LABELS
+      });
+      viewer.imageryLayers.addImageryProvider(bing);
+      return GOOGLE_SATELLITE_LABELS_ASSET_ID ? "bing" : "bing-default";
+    }
+
+    // ---------- map ----------
+    async function initialize() {
+      if (!TOKEN || TOKEN === "PASTE_YOUR_CESIUM_ION_TOKEN") {
+        status.textContent = "Add your Cesium ion token to index.html, then reload.";
+        return;
+      }
+
+      Cesium.Ion.defaultAccessToken = TOKEN;
+
+      viewer = new Cesium.Viewer("map", {
+        baseLayer: false,
+        baseLayerPicker: false,
+        animation: false,
+        timeline: false,
+        geocoder: false,
+        homeButton: false,
+        sceneModePicker: false,
+        navigationHelpButton: false,
+        infoBox: false,
+        selectionIndicator: false,
+        fullscreenButton: false,
+        requestRenderMode: true
+      });
+
+      homeView();
+
+      let basemap = "none";
+      try { basemap = await addBasemap(); }
+      catch (error) { console.warn("Basemap failed:", error); }
+      try { viewer.terrainProvider = await Cesium.createWorldTerrainAsync(); }
+      catch (error) { console.warn("3D terrain failed:", error); }
+      viewer.scene.globe.enableLighting = false;
+      // Keep the imagery/terrain attribution credits visible.
+
+      await addPlaceLabels();
+      $("labelsToggle").addEventListener("change", function () {
+        placeLabels.show = this.checked;
+        viewer.scene.requestRender();
+      });
+
+      status.textContent = ({ google: "Google Maps basemap ready.", bing: "Bing basemap ready (Google Maps failed — see console).", "bing-default": "Bing basemap ready (add your Google asset ID to use Google Maps).", none: "Basemap failed to load — check the Cesium ion token." })[basemap] + " Loading flood scenarios…";
+      viewer.scene.requestRender();
+
+      await loadDefaultData();
+    }
+
+    // ---------- controls ----------
+    fileInput.addEventListener("change", async function (event) {
+      const file = event.target.files[0];
+      if (!file || !viewer) return;
+      try {
+        await loadGeoJson(JSON.parse(await file.text()));
+      } catch (error) {
+        status.textContent = "Could not load file: " + error.message;
+        const hasData = zones.length > 0;
+        play.disabled = reset.disabled = slider.disabled = !hasData;
+      }
+    });
+
+    slider.addEventListener("input", function () {
+      stop();
+      showStep(Number(slider.value));
+    });
+
+    play.addEventListener("click", function () {
+      if (timer !== null) { stop(); return; }
+      if (Number(slider.value) >= numberOfSteps) showStep(0);
+      play.textContent = "Pause";
+      timer = setInterval(function () {
+        const next = Number(slider.value) + 1;
+        if (next > numberOfSteps) { stop(); return; }
+        showStep(next);
+      }, 1000);
+    });
+
+    reset.addEventListener("click", function () { stop(); showStep(0); });
+    home.addEventListener("click", homeView);
+
+    $("collapse").addEventListener("click", function () {
+      const panel = $("panel");
+      const collapsed = panel.classList.toggle("collapsed");
+      this.textContent = collapsed ? "Show" : "Hide";
+      this.setAttribute("aria-expanded", String(!collapsed));
+    });
+
+    initialize().catch(function (error) {
+      status.textContent =
+        "Map failed to load. Check your token, asset permissions " +
+        "and internet connection. " + error.message;
+    });
+  </script>
+</body>
+</html>
